@@ -1,18 +1,16 @@
+%%writefile config.py
 """
-Configuration file for the NTO ML competition baseline.
+Configuration file for the NTO ML competition.
 """
-
 from pathlib import Path
-
 try:
     import torch
 except ImportError:
     torch = None
-
-from . import constants
+import constants 
 
 # --- DIRECTORIES ---
-ROOT_DIR = Path(__file__).resolve().parent.parent.parent
+ROOT_DIR = Path('/content')
 DATA_DIR = ROOT_DIR / "data"
 RAW_DATA_DIR = DATA_DIR / "raw"
 INTERIM_DATA_DIR = DATA_DIR / "interim"
@@ -20,7 +18,6 @@ PROCESSED_DATA_DIR = DATA_DIR / "processed"
 OUTPUT_DIR = ROOT_DIR / "output"
 MODEL_DIR = OUTPUT_DIR / "models"
 SUBMISSION_DIR = OUTPUT_DIR / "submissions"
-
 
 # --- PARAMETERS ---
 N_SPLITS = 5  # Deprecated: kept for backwards compatibility, not used in temporal split
@@ -34,8 +31,8 @@ TEMPORAL_SPLIT_RATIO = 0.8
 
 # --- TRAINING CONFIG ---
 EARLY_STOPPING_ROUNDS = 50
-MODEL_FILENAME_PATTERN = "lgb_fold_{fold}.txt"  # Deprecated: kept for backwards compatibility
-MODEL_FILENAME = "lgb_model.txt"  # Single model filename for temporal split
+MODEL_FILENAME_PATTERN = "lgb_fold_{fold}.txt"  
+MODEL_FILENAME = "lgb_model.txt"  
 
 # --- TF-IDF PARAMETERS ---
 TFIDF_MAX_FEATURES = 500
@@ -52,13 +49,12 @@ BERT_DEVICE = "cuda" if torch and torch.cuda.is_available() else "cpu"
 # Limit GPU memory usage to 50% to prevent overheating and OOM errors
 BERT_GPU_MEMORY_FRACTION = 0.75
 
-
 # --- FEATURES ---
 CAT_FEATURES = [
     constants.COL_USER_ID,
     constants.COL_BOOK_ID,
     constants.COL_GENDER,
-    constants.COL_AGE,
+    constants.COL_AGE, # Включено, если колонка age присутствует
     constants.COL_AUTHOR_ID,
     constants.COL_PUBLICATION_YEAR,
     constants.COL_LANGUAGE,
@@ -83,8 +79,6 @@ LGB_PARAMS = {
     "boosting_type": "gbdt",
 }
 
-# LightGBM's fit method allows for a list of callbacks, including early stopping.
-# To use it, we need to specify parameters for the early stopping callback.
 LGB_FIT_PARAMS = {
     "eval_metric": "rmse",
     "callbacks": [],  # Placeholder for early stopping callback
