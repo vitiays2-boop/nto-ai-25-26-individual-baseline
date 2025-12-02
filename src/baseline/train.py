@@ -1,50 +1,51 @@
+%%writefile train.py
 """
 Main training script for the LightGBM model.
-
 Uses temporal split with absolute date threshold to ensure methodologically
 correct validation without data leakage from future timestamps.
+Excludes records with has_read=0 from the training/validation splits for model fitting.
 """
-
 import lightgbm as lgb
 import numpy as np
 import pandas as pd
+import config  # Абсолютный импорт
+import constants # Абсолютный импорт
+from features import add_aggregate_features, handle_missing_values # Абсолютные импорты
+from temporal_split import get_split_date_from_ratio, temporal_split_by_date # Абсолютные импорты
 from sklearn.metrics import mean_absolute_error, mean_squared_error
-
-from . import config, constants
-from .features import add_aggregate_features, handle_missing_values
-from .temporal_split import get_split_date_from_ratio, temporal_split_by_date
-
 
 def train() -> None:
     """Runs the model training pipeline with temporal split.
-
     Loads prepared data from data/processed/, performs temporal split based on
     absolute date threshold, computes aggregate features on train split only,
     and trains a single LightGBM model. This ensures methodologically correct
     validation without data leakage from future timestamps.
-
     Note: Data must be prepared first using prepare_data.py
     """
     # Load prepared data
     processed_path = config.PROCESSED_DATA_DIR / constants.PROCESSED_DATA_FILENAME
-
     if not processed_path.exists():
         raise FileNotFoundError(
             f"Processed data not found at {processed_path}. "
-            "Please run 'poetry run python -m src.baseline.prepare_data' first."
+            "Please run 'python prepare_data.py' first."
         )
-
     print(f"Loading prepared data from {processed_path}...")
     featured_df = pd.read_parquet(processed_path, engine="pyarrow")
     print(f"Loaded {len(featured_df):,} rows with {len(featured_df.columns)} features")
 
     # Separate train and test sets
-    train_set = featured_df[featured_df[constants.COL_SOURCE] == constants.VAL_SOURCE_TRAIN].copy()
+    # IMPORTANT: Use only rows where has_read=1 for the core training process
+    full_train_set = featured_df[featured_df[constants.COL_SOURCE] == constants.VAL_SOURCE_TRAIN].copy()
+    train_set = full_train_set[full_train_set[constants.COL_HAS_READ] == 1].copy() # <-- FILTER HERE
+
+    print(f"Total rows in source=TRAIN (before filtering): {len(full_train_set)}")
+    print(f"Rows in source=TRAIN with has_read=1 (used for modeling): {len(train_set)}")
+
 
     # Check for timestamp column
     if constants.COL_TIMESTAMP not in train_set.columns:
         raise ValueError(
-            f"Timestamp column '{constants.COL_TIMESTAMP}' not found in train set. "
+            f"Timestamp column '{constants.COL_TIMESTAMP}' not found in train set (has_read=1). "
             "Make sure data was prepared with timestamp preserved."
         )
 
@@ -56,22 +57,19 @@ def train() -> None:
     print(f"\nPerforming temporal split with ratio {config.TEMPORAL_SPLIT_RATIO}...")
     split_date = get_split_date_from_ratio(train_set, config.TEMPORAL_SPLIT_RATIO, constants.COL_TIMESTAMP)
     print(f"Split date: {split_date}")
-
     train_mask, val_mask = temporal_split_by_date(train_set, split_date, constants.COL_TIMESTAMP)
 
     # Split data
     train_split = train_set[train_mask].copy()
     val_split = train_set[val_mask].copy()
-
-    print(f"Train split: {len(train_split):,} rows")
-    print(f"Validation split: {len(val_split):,} rows")
+    print(f"Train split (has_read=1): {len(train_split):,} rows")
+    print(f"Validation split (has_read=1): {len(val_split):,} rows")
 
     # Verify temporal correctness
     max_train_timestamp = train_split[constants.COL_TIMESTAMP].max()
     min_val_timestamp = val_split[constants.COL_TIMESTAMP].min()
     print(f"Max train timestamp: {max_train_timestamp}")
     print(f"Min validation timestamp: {min_val_timestamp}")
-
     if min_val_timestamp <= max_train_timestamp:
         raise ValueError(
             f"Temporal split validation failed: min validation timestamp ({min_val_timestamp}) "
@@ -80,11 +78,12 @@ def train() -> None:
     print("✅ Temporal split validation passed: all validation timestamps are after train timestamps")
 
     # Compute aggregate features on train split only (to prevent data leakage)
-    print("\nComputing aggregate features on train split only...")
+    # Use train_split (has_read=1) for aggregate calculations
+    print("\nComputing aggregate features on train split (has_read=1) only...")
     train_split_with_agg = add_aggregate_features(train_split.copy(), train_split)
     val_split_with_agg = add_aggregate_features(val_split.copy(), train_split)  # Use train_split for aggregates!
 
-    # Handle missing values (use train_split for fill values)
+    # Handle missing values (use train_split (has_read=1) for fill values)
     print("Handling missing values...")
     train_split_final = handle_missing_values(train_split_with_agg, train_split)
     val_split_final = handle_missing_values(val_split_with_agg, train_split)
@@ -98,7 +97,6 @@ def train() -> None:
         constants.COL_TIMESTAMP,
     ]
     features = [col for col in train_split_final.columns if col not in exclude_cols]
-
     # Exclude any remaining object columns that are not model features
     non_feature_object_cols = train_split_final[features].select_dtypes(include=["object"]).columns.tolist()
     features = [f for f in features if f not in non_feature_object_cols]
@@ -141,7 +139,6 @@ def train() -> None:
     print(f"Model saved to {model_path}")
 
     print("\nTraining complete.")
-
 
 if __name__ == "__main__":
     train()
