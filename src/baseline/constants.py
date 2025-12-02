@@ -1,6 +1,6 @@
+%%writefile constants.py
 """
 Project-wide constants.
-
 This module defines constants that are part of the data schema or project
 structure but are not intended to be tuned as hyperparameters.
 """
@@ -29,7 +29,7 @@ COL_PREDICTION = "rating_predict"
 COL_HAS_READ = "has_read"
 COL_TIMESTAMP = "timestamp"
 
-# Feature columns (newly created)
+# Feature columns (newly created in original pipeline)
 F_USER_MEAN_RATING = "user_mean_rating"
 F_USER_RATINGS_COUNT = "user_ratings_count"
 F_BOOK_MEAN_RATING = "book_mean_rating"
@@ -47,7 +47,6 @@ COL_PUBLISHER = "publisher"
 COL_AVG_RATING = "avg_rating"
 COL_GENRE_ID = "genre_id"
 COL_DESCRIPTION = "description"
-
 
 # --- VALUES ---
 VAL_SOURCE_TRAIN = "train"
