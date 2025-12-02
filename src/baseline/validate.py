@@ -1,25 +1,21 @@
+%%writefile validate.py
 """
 Script to validate the format of the submission file.
 """
-
 import pandas as pd
-
-from . import config, constants
-
+import config  
+import constants 
 
 def validate() -> None:
     """Validates the structure and format of the submission file.
-
     Performs a series of checks to ensure the submission file is valid before
     uploading, such as verifying the number of rows, checking for missing
     values, and ensuring the user/book pairs match the test set.
-
     Raises:
         FileNotFoundError: If the test data or submission file does not exist.
         AssertionError: If any of the validation checks fail.
     """
     print("Validating submission file...")
-
     try:
         # Load test data and submission file
         # CSV files use comma as separator (default pandas behavior)
@@ -47,7 +43,6 @@ def validate() -> None:
             .copy()
             .set_index([constants.COL_USER_ID, constants.COL_BOOK_ID])
         )
-
         assert test_keys.index.equals(
             sub_keys.index
         ), "The set of (user_id, book_id) pairs does not match the test set."
@@ -69,7 +64,6 @@ def validate() -> None:
         print(f"Validation failed: {e}")
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
-
 
 if __name__ == "__main__":
     validate()
