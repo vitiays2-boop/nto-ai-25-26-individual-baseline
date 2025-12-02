@@ -1,22 +1,18 @@
+%%writefile evaluate.py
 """Evaluation script for Stage 1 predictions.
-
 This script is provided to participants for transparency and local validation.
 It evaluates submissions against a solution file that contains true ratings
 and public/private split information. Note: the solution file itself is not
 provided to participants, only this evaluation logic.
 """
-
 import argparse
 import sys
-
 import numpy as np
 import pandas as pd
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 
-
 def validate_submission_format(df: pd.DataFrame, solution_df: pd.DataFrame) -> None:
     """Validate submission file format and content.
-
     Raises:
         ValueError: On any format or content error.
     """
@@ -48,7 +44,6 @@ def validate_submission_format(df: pd.DataFrame, solution_df: pd.DataFrame) -> N
 
     solution_pairs = set(zip(solution_df["user_id"], solution_df["book_id"], strict=False))
     submission_pairs = set(zip(df["user_id"], df["book_id"], strict=False))
-
     missing_pairs = solution_pairs - submission_pairs
     if missing_pairs:
         examples = list(missing_pairs)[:5]
@@ -59,14 +54,12 @@ def validate_submission_format(df: pd.DataFrame, solution_df: pd.DataFrame) -> N
         examples = list(extra_pairs)[:5]
         raise ValueError(f"Found {len(extra_pairs)} extra pairs not in solution. Examples: {examples}")
 
-
 def _validate_solution_columns(df: pd.DataFrame) -> None:
     """Validate solution file has required columns."""
     required_cols = {"user_id", "book_id", "rating", "stage"}
     if not required_cols.issubset(df.columns):
         missing = required_cols - set(df.columns)
         raise ValueError(f"Missing required columns: {missing}. Expected: {required_cols}")
-
 
 def _validate_solution_rating(df: pd.DataFrame) -> None:
     """Validate solution rating column."""
@@ -87,7 +80,6 @@ def _validate_solution_rating(df: pd.DataFrame) -> None:
         examples = invalid_ratings[["user_id", "book_id", "rating"]].to_dict("records")[:5]
         raise ValueError(f"Rating values out of range [0, 10]. Examples: {examples}")
 
-
 def _validate_solution_stage(df: pd.DataFrame) -> None:
     """Validate solution stage column."""
     if df["stage"].isna().any():
@@ -104,10 +96,8 @@ def _validate_solution_stage(df: pd.DataFrame) -> None:
     if "private" not in df["stage"].to_numpy():
         raise ValueError("No records with stage='private' found in solution")
 
-
 def validate_solution_format(df: pd.DataFrame) -> None:
     """Validate solution file format and content.
-
     Raises:
         ValueError: On any format or content error.
     """
@@ -118,10 +108,8 @@ def validate_solution_format(df: pd.DataFrame) -> None:
     _validate_solution_rating(df)
     _validate_solution_stage(df)
 
-
 def calculate_stage1_metrics(merged_df: pd.DataFrame) -> dict[str, float]:
     """Calculate RMSE, MAE, and Score metrics.
-
     Predictions are clipped to [0, 10] range.
     """
     if merged_df.empty:
@@ -139,7 +127,6 @@ def calculate_stage1_metrics(merged_df: pd.DataFrame) -> dict[str, float]:
     score = 1 - (0.5 * rmse_norm + 0.5 * mae_norm)
 
     return {"Score": score, "RMSE": rmse, "MAE": mae}
-
 
 def main() -> dict[str, float]:
     """Main evaluation function."""
@@ -196,7 +183,6 @@ def main() -> dict[str, float]:
                 )
             ][["user_id", "book_id"]].to_dict("records")
             raise ValueError(f"Missing {missing} required pairs in public part. " f"Examples: {missing_pairs[:5]}")
-
         if private_merged.shape[0] != solution_private.shape[0]:
             missing = solution_private.shape[0] - private_merged.shape[0]
             missing_pairs = solution_private[
@@ -224,7 +210,6 @@ def main() -> dict[str, float]:
         "public_score": public_metrics["Score"],
         "private_score": private_metrics["Score"],
     }
-
 
 if __name__ == "__main__":
     main()
